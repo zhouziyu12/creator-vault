@@ -1,20 +1,16 @@
 'use client';
 
-import { CreateContentForm } from '@/components/content/CreateContentForm';
-import { useRouter } from 'next/navigation';
+import { PageLayout } from '@/components/layout/PageLayout';
+import { Web3CreateContentForm } from '@/components/content/Web3CreateContentForm';
 
 export default function CreateContentPage() {
-  const router = useRouter();
-
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <CreateContentForm 
-          onSuccess={() => {
-            router.push('/dashboard');
-          }}
-        />
-      </div>
-    </div>
+    <PageLayout 
+      title="Create Web3 Content" 
+      description="Upload to IPFS and start earning Sepolia ETH"
+      showBackButton={true}
+    >
+      <Web3CreateContentForm />
+    </PageLayout>
   );
 }

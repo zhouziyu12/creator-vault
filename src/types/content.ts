@@ -16,6 +16,12 @@ export interface ContentItem {
   earnings: number;
   likes: number;
   status: 'draft' | 'published' | 'archived';
+  
+  // IPFS 相关字段
+  ipfsHash?: string;
+  fileSize?: number;
+  mimeType?: string;
+  category?: string;
 }
 
 export interface ContentStats {
