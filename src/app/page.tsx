@@ -1,103 +1,147 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { CustomUserButton } from '@/components/auth/UserButton';
+import { CreatorDashboard } from '@/components/creator/CreatorDashboard';
+import { useUser } from '@civic/auth-web3/react';
+import { 
+  Search,
+  Menu,
+  Bell,
+  Video,
+  Coins,
+  Shield,
+  Wallet
+} from 'lucide-react';
+
+export default function HomePage() {
+  const { user, isLoading } = useUser();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg animate-pulse mb-4 mx-auto flex items-center justify-center">
+            <Shield className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading CreatorVault...</h2>
+          <p className="text-gray-600">Connecting to Civic Auth Web3...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return <CreatorDashboard />;
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center space-x-4">
+            <button className="p-2 hover:bg-gray-100 rounded-full">
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center space-x-2">
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-2 rounded-lg">
+                <Coins className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xl font-bold">CreatorVault</span>
+              <span className="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full">Web3</span>
+            </div>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          <div className="flex-1 max-w-2xl mx-8">
+            <div className="flex">
+              <input
+                type="text"
+                placeholder="Search for Web3 content, creators, NFTs..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-l-full focus:outline-none focus:border-blue-500"
+              />
+              <button className="px-6 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-full hover:bg-gray-200">
+                <Search className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <button className="p-2 hover:bg-gray-100 rounded-full relative">
+              <Video className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">+</span>
+            </button>
+            <button className="p-2 hover:bg-gray-100 rounded-full">
+              <Bell className="w-5 h-5" />
+            </button>
+            <CustomUserButton />
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 p-6">
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 text-white mb-8">
+          <div className="max-w-2xl">
+            <h1 className="text-4xl font-bold mb-4">
+              Welcome to the Web3 Creator Economy
+            </h1>
+            <p className="text-xl text-purple-100 mb-6">
+              Create, share, and monetize your content with Civic Auth identity verification 
+              and embedded Web3 wallets. Secure, verified, and decentralized.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <div className="flex items-center space-x-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold">
+                <Shield className="w-5 h-5" />
+                <span>Get Verified with Civic:</span>
+              </div>
+              <CustomUserButton />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+              <div className="flex items-center space-x-2 text-purple-100">
+                <Shield className="w-5 h-5" />
+                <span>Identity Verified</span>
+              </div>
+              <div className="flex items-center space-x-2 text-purple-100">
+                <Wallet className="w-5 h-5" />
+                <span>Web3 Wallet Included</span>
+              </div>
+              <div className="flex items-center space-x-2 text-purple-100">
+                <Coins className="w-5 h-5" />
+                <span>Direct Earnings</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+              <Shield className="w-6 h-6 text-purple-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Civic Auth Verified</h3>
+            <p className="text-gray-600">
+              Secure identity verification with seamless Web3 integration. Build trust with your audience.
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+              <Wallet className="w-6 h-6 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Embedded Web3 Wallet</h3>
+            <p className="text-gray-600">
+              Get your Web3 wallet automatically when you sign up. No complex setup required.
+            </p>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+              <Coins className="w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Direct Crypto Earnings</h3>
+            <p className="text-gray-600">
+              Receive payments directly to your wallet. No platform fees, no waiting periods.
+            </p>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
