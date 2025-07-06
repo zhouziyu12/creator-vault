@@ -1,127 +1,105 @@
-import { ContentItem, PaymentRecord } from '@/types/content';
+import { ContentItem } from '@/types/content';
 
-// 简单的本地存储服务（MVP版本）
-class ContentStorageService {
-  private readonly STORAGE_KEY = 'creator_vault_content';
-  private readonly PAYMENTS_KEY = 'creator_vault_payments';
+class ContentStorage {
+  private storageKey = 'creator-vault-contents';
 
-  // 获取所有内容
-  getAllContent(): ContentItem[] {
-    if (typeof window === 'undefined') return [];
+  saveContent(content: ContentItem): void {
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
+      const existingContents = this.getAllContents();
+      const updatedContents = existingContents.filter(item => item.id !== content.id);
+      updatedContents.push(content);
+      
+      localStorage.setItem(this.storageKey, JSON.stringify(updatedContents));
+      console.log('Content saved successfully:', content.id);
+    } catch (error) {
+      console.error('Failed to save content:', error);
+      throw new Error('Failed to save content to local storage');
+    }
+  }
+
+  getAllContents(): ContentItem[] {
+    try {
+      const data = localStorage.getItem(this.storageKey);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('Failed to load contents:', error);
       return [];
     }
   }
 
-  // 根据创作者获取内容
-  getContentByCreator(creatorAddress: string): ContentItem[] {
-    return this.getAllContent().filter(
-      item => item.creatorAddress.toLowerCase() === creatorAddress.toLowerCase()
-    );
-  }
-
-  // 获取已发布的内容
-  getPublishedContent(): ContentItem[] {
-    return this.getAllContent().filter(item => item.status === 'published');
-  }
-
-  // 根据ID获取内容
-  getContentById(id: string): ContentItem | null {
-    const content = this.getAllContent();
-    return content.find(item => item.id === id) || null;
-  }
-
-  // 保存内容
-  saveContent(content: ContentItem): void {
-    if (typeof window === 'undefined') return;
-    
-    const allContent = this.getAllContent();
-    const existingIndex = allContent.findIndex(item => item.id === content.id);
-    
-    if (existingIndex >= 0) {
-      allContent[existingIndex] = { ...content, updatedAt: new Date() };
-    } else {
-      allContent.push(content);
-    }
-    
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(allContent));
-  }
-
-  // 删除内容
-  deleteContent(id: string): void {
-    if (typeof window === 'undefined') return;
-    
-    const allContent = this.getAllContent();
-    const filtered = allContent.filter(item => item.id !== id);
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filtered));
-  }
-
-  // 增加浏览量
-  incrementViews(id: string): void {
-    const content = this.getContentById(id);
-    if (content) {
-      content.views += 1;
-      this.saveContent(content);
-    }
-  }
-
-  // 记录支付
-  recordPayment(payment: PaymentRecord): void {
-    if (typeof window === 'undefined') return;
-    
+  getContent(id: string): ContentItem | null {
     try {
-      const stored = localStorage.getItem(this.PAYMENTS_KEY);
-      const payments = stored ? JSON.parse(stored) : [];
-      payments.push(payment);
-      localStorage.setItem(this.PAYMENTS_KEY, JSON.stringify(payments));
+      const contents = this.getAllContents();
+      return contents.find(content => content.id === id) || null;
+    } catch (error) {
+      console.error('Failed to get content:', error);
+      return null;
+    }
+  }
 
-      // 更新内容收益
-      const content = this.getContentById(payment.contentId);
+  deleteContent(id: string): void {
+    try {
+      const contents = this.getAllContents();
+      const updatedContents = contents.filter(content => content.id !== id);
+      localStorage.setItem(this.storageKey, JSON.stringify(updatedContents));
+    } catch (error) {
+      console.error('Failed to delete content:', error);
+      throw new Error('Failed to delete content');
+    }
+  }
+
+  incrementViews(id: string): void {
+    try {
+      const contents = this.getAllContents();
+      const content = contents.find(c => c.id === id);
       if (content) {
-        content.earnings += payment.amount;
-        this.saveContent(content);
+        content.views = (content.views || 0) + 1;
+        localStorage.setItem(this.storageKey, JSON.stringify(contents));
       }
     } catch (error) {
-      console.error('记录支付失败:', error);
+      console.error('Failed to increment views:', error);
     }
   }
 
-  // 获取支付记录
-  getPayments(contentId?: string): PaymentRecord[] {
-    if (typeof window === 'undefined') return [];
-    
+  incrementLikes(id: string): void {
     try {
-      const stored = localStorage.getItem(this.PAYMENTS_KEY);
-      const payments = stored ? JSON.parse(stored) : [];
-      
-      if (contentId) {
-        return payments.filter((p: PaymentRecord) => p.contentId === contentId);
+      const contents = this.getAllContents();
+      const content = contents.find(c => c.id === id);
+      if (content) {
+        content.likes = (content.likes || 0) + 1;
+        localStorage.setItem(this.storageKey, JSON.stringify(contents));
       }
-      return payments;
-    } catch {
+    } catch (error) {
+      console.error('Failed to increment likes:', error);
+    }
+  }
+
+  getContentsByCreator(creatorAddress: string): ContentItem[] {
+    try {
+      const contents = this.getAllContents();
+      return contents.filter(content => content.creatorAddress === creatorAddress);
+    } catch (error) {
+      console.error('Failed to get contents by creator:', error);
       return [];
     }
   }
 
-  // 生成内容统计
-  getContentStats(creatorAddress: string) {
-    const creatorContent = this.getContentByCreator(creatorAddress);
-    const totalViews = creatorContent.reduce((sum, item) => sum + item.views, 0);
-    const totalEarnings = creatorContent.reduce((sum, item) => sum + item.earnings, 0);
-    const topContent = creatorContent
-      .sort((a, b) => b.earnings - a.earnings)
-      .slice(0, 5);
-
-    return {
-      totalViews,
-      totalEarnings,
-      totalContent: creatorContent.length,
-      topContent
-    };
+  searchContents(query: string): ContentItem[] {
+    try {
+      const contents = this.getAllContents();
+      const searchTerm = query.toLowerCase();
+      
+      return contents.filter(content => 
+        content.title.toLowerCase().includes(searchTerm) ||
+        content.description.toLowerCase().includes(searchTerm) ||
+        content.tags.some(tag => tag.toLowerCase().includes(searchTerm)) ||
+        content.creatorName.toLowerCase().includes(searchTerm)
+      );
+    } catch (error) {
+      console.error('Failed to search contents:', error);
+      return [];
+    }
   }
 }
 
-export const contentStorage = new ContentStorageService();
+export const contentStorage = new ContentStorage();
