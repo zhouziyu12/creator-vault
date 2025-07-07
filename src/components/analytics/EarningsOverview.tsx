@@ -9,69 +9,48 @@ import {
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { contentStorage } from '@/lib/content/storage';
-import { paymentService } from '@/lib/payments/paymentService';
 
 interface EarningsOverviewProps {
   timeRange: string;
 }
 
 export function EarningsOverview({ timeRange }: EarningsOverviewProps) {
-  const [stats, setStats] = useState({
-    totalEarnings: '0.000',
-    totalViews: '0',
-    totalSales: '0',
-    totalContent: '0',
-    trends: { earnings: 0, views: 0, sales: 0, content: 0 }
-  });
-
-  useEffect(() => {
-    calculateRealStats();
-  }, [timeRange]);
-
-  const calculateRealStats = () => {
-    // 获取真实内容数据
-    const allContents = contentStorage.getAllContents();
-    const publishedContents = allContents.filter(content => content.status === 'published');
-    
-    // 获取真实购买和打赏数据
-    const purchases = paymentService.getPurchases();
-    const tips = paymentService.getTips();
-    
-    // 计算总观看量
-    const totalViews = publishedContents.reduce((sum, content) => sum + (content.views || 0), 0);
-    
-    // 计算总收益（购买 + 打赏）
-    const purchaseEarnings = purchases.reduce((sum: number, purchase: any) => sum + purchase.amount, 0);
-    const tipEarnings = tips.reduce((sum: number, tip: any) => sum + tip.amount, 0);
-    const totalEarnings = purchaseEarnings + tipEarnings;
-    
-    // 计算销售次数
-    const totalSales = purchases.length;
-    
-    // 计算内容数量
-    const totalContent = publishedContents.length;
-    
-    // 模拟趋势数据（基于实际数据生成合理的增长率）
-    const baseTrend = totalEarnings > 0 ? 15 : 0;
-    const viewsTrend = totalViews > 100 ? 12 : totalViews > 0 ? 5 : 0;
-    const salesTrend = totalSales > 0 ? 25 : 0;
-    const contentTrend = totalContent > 1 ? 8 : 0;
-
-    setStats({
-      totalEarnings: totalEarnings.toFixed(3),
-      totalViews: totalViews.toLocaleString(),
-      totalSales: totalSales.toString(),
-      totalContent: totalContent.toString(),
-      trends: {
-        earnings: baseTrend,
-        views: viewsTrend,
-        sales: salesTrend,
-        content: contentTrend
+  // 模拟数据 - 根据时间范围调整
+  const getStatsForTimeRange = (range: string) => {
+    const baseStats = {
+      '7d': {
+        totalEarnings: '0.0347',
+        totalViews: '1.2K',
+        totalSales: '12',
+        conversionRate: '2.3',
+        trends: { earnings: 12.5, views: 8.2, sales: 15.3, conversion: 3.1 }
+      },
+      '30d': {
+        totalEarnings: '0.1847',
+        totalViews: '4.8K',
+        totalSales: '56',
+        conversionRate: '2.8',
+        trends: { earnings: 23.4, views: 18.7, sales: 31.2, conversion: 5.6 }
+      },
+      '90d': {
+        totalEarnings: '0.6234',
+        totalViews: '12.3K',
+        totalSales: '167',
+        conversionRate: '3.2',
+        trends: { earnings: 45.2, views: 34.1, sales: 52.8, conversion: 8.9 }
+      },
+      '1y': {
+        totalEarnings: '2.4561',
+        totalViews: '45.6K',
+        totalSales: '634',
+        conversionRate: '3.8',
+        trends: { earnings: 156.7, views: 89.3, sales: 142.5, conversion: 15.2 }
       }
-    });
+    };
+    return baseStats[range as keyof typeof baseStats] || baseStats['7d'];
   };
+
+  const stats = getStatsForTimeRange(timeRange);
 
   const statCards = [
     {
@@ -102,13 +81,13 @@ export function EarningsOverview({ timeRange }: EarningsOverviewProps) {
       description: 'Direct purchases'
     },
     {
-      title: 'Published Content',
-      value: stats.totalContent,
-      subValue: 'Live content pieces',
+      title: 'Conversion Rate',
+      value: `${stats.conversionRate}%`,
+      subValue: 'View to purchase',
       icon: TrendingUp,
       color: 'orange',
-      trend: stats.trends.content,
-      description: 'Growing library'
+      trend: stats.trends.conversion,
+      description: 'Above industry avg'
     }
   ];
 
@@ -135,21 +114,43 @@ export function EarningsOverview({ timeRange }: EarningsOverviewProps) {
                   'text-orange-600'
                 }`} />
               </div>
-              {stat.trend > 0 && (
-                <div className={`flex items-center space-x-1 text-sm ${
-                  isPositive ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  <TrendIcon className="w-4 h-4" />
-                  <span>{Math.abs(stat.trend)}%</span>
-                </div>
-              )}
+              <div className={`flex items-center space-x-1 ${
+                isPositive ? 'text-green-600' : 'text-red-600'
+              }`}>
+                <TrendIcon className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  {stat.trend.toFixed(1)}%
+                </span>
+              </div>
             </div>
             
             <div className="space-y-1">
-              <h3 className="text-sm font-medium text-gray-600">{stat.title}</h3>
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              <p className="text-xs text-gray-500">{stat.subValue}</p>
-              <p className="text-xs text-blue-600 font-medium">{stat.description}</p>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {stat.value}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {stat.subValue}
+              </p>
+              <p className="text-xs text-gray-400">
+                {stat.description}
+              </p>
+            </div>
+            
+            <div className="mt-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-1">
+                {stat.title}
+              </h4>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full ${
+                    stat.color === 'green' ? 'bg-green-500' :
+                    stat.color === 'blue' ? 'bg-blue-500' :
+                    stat.color === 'purple' ? 'bg-purple-500' :
+                    'bg-orange-500'
+                  }`}
+                  style={{ width: `${Math.min(stat.trend * 2, 100)}%` }}
+                />
+              </div>
             </div>
           </div>
         );

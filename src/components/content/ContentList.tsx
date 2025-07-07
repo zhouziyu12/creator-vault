@@ -2,350 +2,364 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@civic/auth-web3/react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { contentStorage } from '@/lib/content/storage';
+import { useContentInit } from '@/hooks/useContentInit';
+import { ContentItem } from '@/types/content';
 import { 
   Eye, 
   Heart, 
+  DollarSign, 
   Calendar, 
-  DollarSign,
+  MoreHorizontal,
   Edit,
   Trash2,
-  ExternalLink,
+  Share2,
   Globe,
   Lock,
-  Image,
-  Video,
-  Mic,
-  Type
+  User,
+  TrendingUp
 } from 'lucide-react';
-import { ContentItem } from '@/types/content';
-import { contentStorage } from '@/lib/content/storage';
+import Link from 'next/link';
 
 interface ContentListProps {
   showCreatorOnly?: boolean;
   limit?: number;
+  category?: string;
 }
 
-export function ContentList({ showCreatorOnly = false, limit }: ContentListProps) {
+export function ContentList({ showCreatorOnly = false, limit, category }: ContentListProps) {
   const { user } = useUser();
-  const router = useRouter();
+  const isContentInitialized = useContentInit();
   const [contents, setContents] = useState<ContentItem[]>([]);
-  const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [loading, setLoading] = useState(true);
+  const [showActions, setShowActions] = useState<string | null>(null);
+
+  const getCurrentUserId = () => {
+    if (typeof window === 'undefined') return 'ssr_user';
+    
+    try {
+      const authUser = localStorage.getItem('auth_user');
+      if (authUser) {
+        return JSON.parse(authUser).id;
+      }
+      return user?.id || user?.email || 'demo_user';
+    } catch {
+      return user?.id || user?.email || 'demo_user';
+    }
+  };
 
   useEffect(() => {
-    loadContent();
-  }, [user, filter, showCreatorOnly]);
-
-  const loadContent = () => {
+    if (!isContentInitialized) return;
+    
     setLoading(true);
+    
     try {
-      console.log('=== LOADING CONTENT ===');
-      console.log('showCreatorOnly:', showCreatorOnly);
-      console.log('user:', user);
-      console.log('filter:', filter);
-      
-      let items: ContentItem[] = [];
-      const allContents = contentStorage.getAllContents();
-      
-      console.log('All contents from storage:', allContents);
+      let allContents: ContentItem[];
       
       if (showCreatorOnly) {
-        // 更宽松的创作者匹配逻辑
-        const possibleCreatorIds = [
-          user?.wallet?.address,
-          user?.id,
-          user?.email,
-          '0x84Ff138D180e7CcA7C92C94861bbe5D182eD703E', // 默认地址
-          'Test Creator', // 默认创作者名
-          'Demo Creator'
-        ].filter(Boolean);
-        
-        console.log('Looking for any of these creator IDs:', possibleCreatorIds);
-        
-        items = allContents.filter(content => {
-          const match = possibleCreatorIds.some(id => 
-            content.creatorAddress === id || 
-            content.creatorName === id ||
-            content.creatorAddress?.toLowerCase() === id?.toLowerCase()
-          );
-          console.log(`Content "${content.title}" creator: ${content.creatorAddress}, match: ${match}`);
-          return match;
-        });
-        
-        console.log('Matched creator contents:', items);
+        // 只显示当前用户的内容
+        const userId = getCurrentUserId();
+        allContents = contentStorage.getUserContents(userId);
+        console.log('📝 Loading user contents for:', userId, 'Found:', allContents.length);
       } else {
-        // 显示所有已发布的内容
-        items = allContents.filter(content => content.status === 'published');
-        console.log('Published contents:', items);
+        // 显示所有用户的内容
+        allContents = contentStorage.getAllContents();
+        console.log('🌐 Loading all contents, Found:', allContents.length);
       }
 
-      if (filter === 'published') {
-        items = items.filter(content => content.status === 'published');
-      } else if (filter === 'draft') {
-        items = items.filter(content => content.status === 'draft');
+      // 分类过滤
+      if (category && category !== 'all') {
+        allContents = allContents.filter(content => content.category === category);
       }
 
-      console.log('Final filtered items:', items);
+      // 只显示已发布的内容
+      allContents = allContents.filter(content => content.status === 'published');
 
       // 按创建时间排序
-      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      
-      // 应用限制
-      if (limit && limit > 0) {
-        items = items.slice(0, limit);
+      allContents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      // 限制数量
+      if (limit) {
+        allContents = allContents.slice(0, limit);
       }
-      
-      setContents(items);
+
+      setContents(allContents);
     } catch (error) {
-      console.error('Failed to load content:', error);
+      console.error('❌ Failed to load contents:', error);
+      setContents([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [showCreatorOnly, limit, category, user, isContentInitialized]);
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this content?')) {
-      try {
-        contentStorage.deleteContent(id);
-        loadContent(); // 重新加载列表
-      } catch (error) {
-        console.error('Failed to delete content:', error);
-        alert('Failed to delete content');
-      }
+    if (window.confirm('Are you sure you want to delete this content?')) {
+      contentStorage.deleteContent(id);
+      setContents(contents.filter(c => c.id !== id));
+      setShowActions(null);
     }
   };
 
-  const getContentTypeIcon = (type: string) => {
-    switch (type) {
-      case 'article': return Type;
-      case 'image': return Image;
-      case 'video': return Video;
-      case 'audio': return Mic;
-      default: return Type;
-    }
+  const isOwner = (content: ContentItem) => {
+    const userId = getCurrentUserId();
+    const userName = user?.name || 'Demo User';
+    
+    return content.creatorAddress === userId ||
+           content.creatorName === userName ||
+           content.creatorAddress?.toLowerCase() === userId?.toLowerCase();
   };
+
+  if (!isContentInitialized) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Initializing content...</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 animate-pulse">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (contents.length === 0) {
     return (
-      <div className="text-center py-8">
-        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
-          <Type className="w-6 h-6 text-gray-400" />
+      <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Globe className="w-8 h-8 text-gray-400" />
         </div>
-        <h3 className="text-sm font-medium text-gray-900 mb-2">No content found</h3>
-        <p className="text-xs text-gray-600 mb-3">
-          {showCreatorOnly ? "You don't have any content yet" : "No published content available"}
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          {showCreatorOnly ? 'No content created yet' : 'No content available'}
+        </h3>
+        <p className="text-gray-600 mb-4">
+          {showCreatorOnly 
+            ? 'Start creating your first piece of content to build your audience.' 
+            : 'Be the first to create and share content with the community.'
+          }
         </p>
         {showCreatorOnly && (
-          <div className="space-y-2">
-            <Link
-              href="/content/create"
-              className="inline-block bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 text-sm"
-            >
-              Create Your First Content
-            </Link>
-            <div className="text-xs">
-              <button
-               onClick={() => {
-                 // 临时修复：将现有内容的创作者改为当前用户
-                 const allContents = contentStorage.getAllContents();
-                 allContents.forEach(content => {
-                   if (content.creatorAddress === '0x84Ff138D180e7CcA7C92C94861bbe5D182eD703E') {
-                     content.creatorAddress = user?.id || user?.wallet?.address || content.creatorAddress;
-                     contentStorage.saveContent(content);
-                   }
-                 });
-                 loadContent();
-               }}
-               className="text-blue-600 hover:text-blue-700 underline"
-             >
-               Link existing content to my account
-             </button>
-           </div>
-         </div>
-       )}
-     </div>
-   );
- }
+          <Link
+            href="/content/create"
+            className="inline-flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Create Content
+          </Link>
+        )}
+      </div>
+    );
+  }
 
- return (
-   <div className="space-y-4">
-     {/* 过滤器 - 只在显示创作者内容且非限制模式时显示 */}
-     {showCreatorOnly && !limit && (
-       <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-         <button
-           onClick={() => setFilter('all')}
-           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-             filter === 'all'
-               ? 'bg-white text-purple-600 shadow-sm'
-               : 'text-gray-600 hover:text-gray-900'
-           }`}
-         >
-           All
-         </button>
-         <button
-           onClick={() => setFilter('published')}
-           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-             filter === 'published'
-               ? 'bg-white text-purple-600 shadow-sm'
-               : 'text-gray-600 hover:text-gray-900'
-           }`}
-         >
-           Published
-         </button>
-         <button
-           onClick={() => setFilter('draft')}
-           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-             filter === 'draft'
-               ? 'bg-white text-purple-600 shadow-sm'
-               : 'text-gray-600 hover:text-gray-900'
-           }`}
-         >
-           Draft
-         </button>
-       </div>
-     )}
+  return (
+    <div className="space-y-4">
+      {/* 内容统计 */}
+      {!showCreatorOnly && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-blue-700">
+                <Globe className="w-5 h-5" />
+                <span className="font-medium">Community Content</span>
+              </div>
+              <div className="text-sm text-blue-600">
+                {contents.length} pieces • {contents.filter(c => !c.isPremium).length} free • {contents.filter(c => c.isPremium).length} premium
+              </div>
+            </div>
+            <div className="flex items-center space-x-3 text-sm text-blue-600">
+              <div className="flex items-center space-x-1">
+                <TrendingUp className="w-4 h-4" />
+                <span>Growing Community</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-     {/* 内容列表 */}
-     <div className="grid gap-4">
-       {contents.map((content) => {
-         const Icon = getContentTypeIcon(content.contentType);
-         
-         return (
-           <div key={content.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-             <div className="flex items-start space-x-4">
-               {/* 缩略图 */}
-               <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 relative">
-                 {content.coverImage ? (
-                   <img
-                     src={content.coverImage}
-                     alt={content.title}
-                     className="w-full h-full object-cover rounded-lg"
-                   />
-                 ) : (
-                   <Icon className="w-6 h-6 text-gray-400" />
-                 )}
-                 
-                 {/* IPFS 标识 */}
-                 {content.ipfsHash && (
-                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full"></div>
-                 )}
-               </div>
+      {/* 内容列表 */}
+      {contents.map((content) => (
+        <div key={content.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-200">
+          <div className="flex items-start space-x-4">
+            {/* 缩略图 */}
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+              {content.coverImage ? (
+                <img
+                  src={content.coverImage}
+                  alt={content.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Globe className="w-8 h-8 text-purple-600" />
+              )}
+              {content.isPremium && (
+                <div className="absolute top-1 right-1 bg-purple-600 text-white p-1 rounded">
+                  <Lock className="w-3 h-3" />
+                </div>
+              )}
+            </div>
 
-               {/* 内容信息 */}
-               <div className="flex-1 min-w-0">
-                 <div className="flex items-start justify-between">
-                   <div className="flex-1">
-                     <h3 className="text-lg font-semibold text-gray-900 truncate">{content.title}</h3>
-                     <p className="text-gray-600 text-sm mt-1 line-clamp-2">{content.description}</p>
-                     
-                     {/* 元数据 */}
-                     <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                       <div className="flex items-center space-x-1">
-                         <Calendar className="w-4 h-4" />
-                         <span>{new Date(content.createdAt).toLocaleDateString()}</span>
-                       </div>
-                       <div className="flex items-center space-x-1">
-                         <Eye className="w-4 h-4" />
-                         <span>{content.views || 0}</span>
-                       </div>
-                       <div className="flex items-center space-x-1">
-                         <Heart className="w-4 h-4" />
-                         <span>{content.likes || 0}</span>
-                       </div>
-                       <div className="flex items-center space-x-1">
-                         {content.isPremium ? <Lock className="w-4 h-4" /> : <Globe className="w-4 h-4" />}
-                         <span>{content.isPremium ? `${content.price} ETH` : 'Free'}</span>
-                       </div>
-                     </div>
-                   </div>
+            {/* 内容信息 */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1 min-w-0 pr-4">
+                  <Link
+                    href={`/content/${content.id}`}
+                    className="block group"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors line-clamp-1">
+                      {content.title}
+                    </h3>
+                  </Link>
+                  <p className="text-gray-600 text-sm mt-1 line-clamp-2">
+                    {content.description}
+                  </p>
+                </div>
+                
+                {/* 价格标签 */}
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  {content.isPremium ? (
+                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                      <DollarSign className="w-3 h-3" />
+                      <span>{content.price} ETH</span>
+                    </span>
+                  ) : (
+                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                      Free
+                    </span>
+                  )}
+                </div>
+              </div>
 
-                   {/* 状态和操作 */}
-                   <div className="flex items-center space-x-2 ml-4">
-                     {/* 状态标识 */}
-                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                       content.status === 'published' 
-                         ? 'bg-green-100 text-green-700'
-                         : 'bg-yellow-100 text-yellow-700'
-                     }`}>
-                       {content.status === 'published' ? 'Published' : 'Draft'}
-                     </span>
+              {/* 创作者信息 */}
+              <div className="flex items-center space-x-4 mb-3">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    {content.creatorName[0].toUpperCase()}
+                  </div>
+                  <span>{content.creatorName}</span>
+                  {isOwner(content) && (
+                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">
+                      Your Content
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center space-x-1 text-sm text-gray-500">
+                  <Calendar className="w-4 h-4" />
+                  <span>{new Date(content.createdAt).toLocaleDateString()}</span>
+                </div>
 
-                     {/* 操作按钮 */}
-                     <div className="flex items-center space-x-1">
-                       <button
-                         onClick={() => router.push(`/content/${content.id}`)}
-                         className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                         title="Preview"
-                       >
-                         <ExternalLink className="w-4 h-4" />
-                       </button>
-                       
-                       {showCreatorOnly && (
-                         <>
-                           <button
-                             onClick={() => router.push(`/content/edit/${content.id}`)}
-                             className="p-2 text-gray-400 hover:text-purple-600 transition-colors"
-                             title="Edit"
-                           >
-                             <Edit className="w-4 h-4" />
-                           </button>
-                           
-                           <button
-                             onClick={() => handleDelete(content.id)}
-                             className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                             title="Delete"
-                           >
-                             <Trash2 className="w-4 h-4" />
-                           </button>
-                         </>
-                       )}
-                     </div>
-                   </div>
-                 </div>
+                {content.category && (
+                  <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
+                    {content.category}
+                  </span>
+                )}
+              </div>
 
-                 {/* 标签 */}
-                 {content.tags && content.tags.length > 0 && (
-                   <div className="flex flex-wrap gap-1 mt-3">
-                     {content.tags.slice(0, 3).map((tag, index) => (
-                       <span
-                         key={index}
-                         className="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs"
-                       >
-                         {tag}
-                       </span>
-                     ))}
-                     {content.tags.length > 3 && (
-                       <span className="text-gray-400 text-xs">+{content.tags.length - 3}</span>
-                     )}
-                   </div>
-                 )}
+              {/* 标签 */}
+              {content.tags && content.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {content.tags.slice(0, 3).map((tag, index) => (
+                    <span
+                      key={index}
+                      className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                  {content.tags.length > 3 && (
+                    <span className="text-gray-400 text-xs">+{content.tags.length - 3}</span>
+                  )}
+                </div>
+              )}
 
-                 {/* IPFS 信息 */}
-                 {content.ipfsHash && (
-                   <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                     <div className="flex items-center space-x-1 text-blue-700">
-                       <Globe className="w-3 h-3" />
-                       <span className="font-medium">Stored on IPFS</span>
-                     </div>
-                     <code className="text-blue-600 break-all">{content.ipfsHash}</code>
-                   </div>
-                 )}
-               </div>
-             </div>
-           </div>
-         );
-       })}
-     </div>
-   </div>
- );
+              {/* 底部统计和操作 */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center space-x-1">
+                    <Eye className="w-4 h-4" />
+                    <span>{content.views || 0}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Heart className="w-4 h-4" />
+                    <span>{content.likes || 0}</span>
+                  </div>
+                  <span className="text-xs">
+                    {content.status === 'draft' ? '📝 Draft' : '✅ Published'}
+                  </span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Link
+                    href={`/content/${content.id}`}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                  >
+                    {content.isPremium ? 'View/Buy' : 'Read'}
+                  </Link>
+
+                  {/* 操作菜单 */}
+                  {isOwner(content) && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowActions(showActions === content.id ? null : content.id)}
+                        className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+
+                      {showActions === content.id && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setShowActions(null)}></div>
+                          <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                            <Link
+                              href={`/content/edit/${content.id}`}
+                              className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                              onClick={() => setShowActions(null)}
+                            >
+                              <Edit className="w-4 h-4" />
+                              <span>Edit</span>
+                            </Link>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/content/${content.id}`);
+                                alert('Link copied!');
+                                setShowActions(null);
+                              }}
+                              className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <Share2 className="w-4 h-4" />
+                              <span>Share</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(content.id)}
+                              className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }

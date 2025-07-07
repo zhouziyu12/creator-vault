@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { CustomUserButton } from '@/components/auth/UserButton';
 import { CreatorDashboard } from '@/components/creator/CreatorDashboard';
 import { QuickPaymentTest } from '@/components/demo/QuickPaymentTest';
 import { AccountManager } from '@/components/auth/AccountManager';
+import { ContentDebugPanel } from '@/components/debug/ContentDebugPanel';
 import { useUser } from '@civic/auth-web3/react';
 import { 
   Search,
@@ -17,8 +19,23 @@ import {
 
 export default function HomePage() {
   const { user, isLoading } = useUser();
+  const [mockUser, setMockUser] = useState<any>(null);
 
-  if (isLoading) {
+  useEffect(() => {
+    // 检查是否有保存的 mock 用户
+    const savedUser = localStorage.getItem('auth_user');
+    if (savedUser) {
+      try {
+        setMockUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.error('Failed to parse saved user:', e);
+      }
+    }
+  }, [user]);
+
+  const currentUser = user || mockUser;
+
+  if (isLoading && !mockUser) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -27,23 +44,18 @@ export default function HomePage() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading CreatorVault...</h2>
           <p className="text-gray-600">Initializing Civic Auth...</p>
-          
-          {/* 调试信息 */}
-          <div className="mt-4 text-xs text-gray-500">
-            <p>🔍 Using official Civic Auth SDK</p>
-            <p>📖 Following documentation guidelines</p>
-          </div>
         </div>
       </div>
     );
   }
 
-  if (user) {
+  if (currentUser) {
     return (
       <>
         <CreatorDashboard />
         <QuickPaymentTest />
         <AccountManager />
+        <ContentDebugPanel />
       </>
     );
   }
@@ -161,6 +173,7 @@ export default function HomePage() {
       
       <QuickPaymentTest />
       <AccountManager />
+      <ContentDebugPanel />
     </>
   );
 }

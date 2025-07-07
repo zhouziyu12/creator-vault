@@ -1,75 +1,159 @@
 'use client';
 
-import { Eye, DollarSign, Heart, TrendingUp } from 'lucide-react';
-import { contentStorage } from '@/lib/content/storage';
-import { useEffect, useState } from 'react';
+import { Eye, DollarSign, Heart, TrendingUp, TrendingDown } from 'lucide-react';
 
 export function TopContent() {
-  const [topContent, setTopContent] = useState<any[]>([]);
-
-  useEffect(() => {
-    const contents = contentStorage.getAllContents()
-      .filter(content => content.status === 'published')
-      .sort((a, b) => (b.views || 0) - (a.views || 0))
-      .slice(0, 5)
-      .map(content => ({
-        ...content,
-        earnings: content.isPremium ? (content.price * Math.floor(Math.random() * 10 + 1)) : 0,
-        conversionRate: content.isPremium ? (Math.random() * 5 + 1).toFixed(1) : 'N/A'
-      }));
-    
-    setTopContent(contents);
-  }, []);
-
-  if (topContent.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500">No content data available</p>
-        <p className="text-sm text-gray-400">Create and publish content to see analytics</p>
-      </div>
-    );
-  }
+  const topContent = [
+    {
+      id: '1',
+      title: 'Building Your First DeFi App',
+      type: 'article',
+      views: 2840,
+      earnings: 0.125,
+      likes: 47,
+      trend: 'up',
+      trendValue: 23.5,
+      thumbnail: '📱'
+    },
+    {
+      id: '2',
+      title: 'Web3 Security Best Practices',
+      type: 'video',
+      views: 1950,
+      earnings: 0.089,
+      likes: 31,
+      trend: 'up',
+      trendValue: 15.2,
+      thumbnail: '🔐'
+    },
+    {
+      id: '3',
+      title: 'Solidity Smart Contract Tutorial',
+      type: 'article',
+      views: 1670,
+      earnings: 0.067,
+      likes: 28,
+      trend: 'down',
+      trendValue: -5.3,
+      thumbnail: '⚡'
+    },
+    {
+      id: '4',
+      title: 'NFT Marketplace Development',
+      type: 'video',
+      views: 1420,
+      earnings: 0.053,
+      likes: 22,
+      trend: 'up',
+      trendValue: 8.7,
+      thumbnail: '🎨'
+    },
+    {
+      id: '5',
+      title: 'Crypto Wallet Integration Guide',
+      type: 'article',
+      views: 1200,
+      earnings: 0.041,
+      likes: 19,
+      trend: 'up',
+      trendValue: 12.1,
+      thumbnail: '💰'
+    }
+  ];
 
   return (
-    <div className="space-y-4">
-      {topContent.map((content, index) => (
-        <div key={content.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex-shrink-0">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-              index === 0 ? 'bg-yellow-500' :
-              index === 1 ? 'bg-gray-400' :
-              index === 2 ? 'bg-orange-500' :
-              'bg-blue-500'
-            }`}>
-              {index + 1}
-            </div>
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-gray-900 truncate">{content.title}</h4>
-            <p className="text-sm text-gray-500 truncate">{content.description}</p>
-          </div>
-          
-          <div className="flex-shrink-0 text-right space-y-1">
-            <div className="flex items-center space-x-1 text-sm">
-              <Eye className="w-3 h-3 text-gray-400" />
-              <span className="text-gray-600">{content.views || 0}</span>
-            </div>
-            <div className="flex items-center space-x-1 text-sm">
-              <DollarSign className="w-3 h-3 text-green-500" />
-              <span className="text-green-600 font-medium">
-                {content.earnings ? `${content.earnings.toFixed(3)} ETH` : 'Free'}
-              </span>
-            </div>
-            {content.isPremium && (
-              <div className="text-xs text-blue-600">
-                {content.conversionRate}% conversion
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="p-6 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900">Top Performing Content</h3>
+        <p className="text-sm text-gray-600 mt-1">Your highest earning and most viewed content</p>
+      </div>
+      
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Content
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Performance
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Earnings
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Trend
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {topContent.map((content, index) => {
+              const TrendIcon = content.trend === 'up' ? TrendingUp : TrendingDown;
+              
+              return (
+                <tr key={content.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="text-2xl">{content.thumbnail}</div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {content.title}
+                        </div>
+                        <div className="text-sm text-gray-500 capitalize">
+                          {content.type}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-1">
+                        <Eye className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-900">
+                          {content.views.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Heart className="w-4 h-4 text-red-400" />
+                        <span className="text-sm text-gray-900">
+                          {content.likes}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {((content.likes / content.views) * 100).toFixed(1)}% like rate
+                    </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-1">
+                      <DollarSign className="w-4 h-4 text-green-500" />
+                      <span className="text-sm font-medium text-green-600">
+                        {content.earnings.toFixed(3)} ETH
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      ≈ ${(content.earnings * 2000).toFixed(0)}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className={`flex items-center space-x-1 ${
+                      content.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      <TrendIcon className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        {content.trendValue > 0 ? '+' : ''}{content.trendValue}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      vs last period
+                    </p>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
