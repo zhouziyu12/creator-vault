@@ -1,4 +1,3 @@
-# [复制 artifact 中的完整内容]
 
 # 🎬 CreatorVault
 ## *Empowering Creators with Web3 - Zero Platform Fees, Instant Payouts*
